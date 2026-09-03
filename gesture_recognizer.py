@@ -1,14 +1,15 @@
 """
 Gesture Recognizer Module
-Classifies hand gestures based on MediaPipe hand landmarks.
-Uses the new MediaPipe Tasks API (v1.0+).
+Classifies hand gestures using scale- and rotation-invariant geometry.
+Uses MediaPipe Tasks API (v1.0+).
 """
+
+import math
 
 
 class GestureRecognizer:
     """Recognizes hand gestures from MediaPipe HandLandmarker results."""
 
-    # MediaPipe landmark indices
     WRIST = 0
     THUMB_CMC = 1
     THUMB_MCP = 2
@@ -32,70 +33,62 @@ class GestureRecognizer:
     PINKY_TIP = 20
 
     def __init__(self):
-        """Initialize the GestureRecognizer."""
         pass
+
+    @staticmethod
+    def _dist(p1, p2):
+        """Calculate 2D Euclidean distance between two landmark points."""
+        return math.hypot(p1.x - p2.x, p1.y - p2.y)
 
     def recognize(self, landmarks, handedness_label):
         """
-        Recognize a gesture based on hand landmarks.
+        Recognize hand gesture based on 21 hand landmarks.
 
         Args:
-            landmarks: List of NormalizedLandmark objects from MediaPipe HandLandmarker.
-                       Each landmark has .x, .y, .z attributes.
+            landmarks: List of NormalizedLandmark objects.
             handedness_label: String — "Left" or "Right".
 
         Returns:
-            str: The name of the recognized gesture.
+            str: The recognized gesture name.
         """
         if not landmarks or len(landmarks) < 21:
             return "None"
 
-        # Shorthand access
         lm = landmarks
 
-        is_right = handedness_label == "Right"
+        # Measure palm scale (wrist to middle knuckle) for camera-distance invariance
+        hand_scale = self._dist(lm[self.WRIST], lm[self.MIDDLE_MCP])
+        if hand_scale < 0.01:
+            return "None"
 
-        # --- Determine if each finger is extended ---
+        # Rotation-invariant finger extension:
+        # A curled finger's tip moves closer to the wrist than its PIP knuckle,
+        # regardless of whether the hand is pointing up, down, or sideways.
+        index_ext = self._dist(lm[self.INDEX_TIP], lm[self.WRIST]) > self._dist(lm[self.INDEX_PIP], lm[self.WRIST])
+        middle_ext = self._dist(lm[self.MIDDLE_TIP], lm[self.WRIST]) > self._dist(lm[self.MIDDLE_PIP], lm[self.WRIST])
+        ring_ext = self._dist(lm[self.RING_TIP], lm[self.WRIST]) > self._dist(lm[self.RING_PIP], lm[self.WRIST])
+        pinky_ext = self._dist(lm[self.PINKY_TIP], lm[self.WRIST]) > self._dist(lm[self.PINKY_PIP], lm[self.WRIST])
 
-        # Thumb: compare tip.x to ip.x (horizontal extension)
-        # Note: In a selfie/flipped view, right-hand thumb extends left (lower x)
-        if is_right:
-            thumb_ext = lm[self.THUMB_TIP].x < lm[self.THUMB_IP].x
-        else:
-            thumb_ext = lm[self.THUMB_TIP].x > lm[self.THUMB_IP].x
-
-        # Other fingers: tip.y < pip.y means extended (y increases downward)
-        index_ext = lm[self.INDEX_TIP].y < lm[self.INDEX_PIP].y
-        middle_ext = lm[self.MIDDLE_TIP].y < lm[self.MIDDLE_PIP].y
-        ring_ext = lm[self.RING_TIP].y < lm[self.RING_PIP].y
-        pinky_ext = lm[self.PINKY_TIP].y < lm[self.PINKY_PIP].y
-
-        # Are all 4 non-thumb fingers curled?
         four_curled = not (index_ext or middle_ext or ring_ext or pinky_ext)
 
-        # --- Gesture classification ---
-
-        # Fist / Thumbs Up / Thumbs Down (all 4 fingers curled)
+        # --- Thumb Scroll Postures (All 4 fingers curled) ---
         if four_curled:
-            thumb_tip_y = lm[self.THUMB_TIP].y
-            thumb_mcp_y = lm[self.THUMB_MCP].y
+            # Measure vertical difference scaled to hand size
+            vert_diff = lm[self.THUMB_MCP].y - lm[self.THUMB_TIP].y
+            tilt_threshold = 0.22 * hand_scale
 
-            if thumb_tip_y < thumb_mcp_y - 0.05:
+            if vert_diff > tilt_threshold:
                 return "Thumbs Up"
-            elif thumb_tip_y > thumb_mcp_y + 0.05:
+            elif vert_diff < -tilt_threshold:
                 return "Thumbs Down"
             else:
-                return "Fist"
+                return "Thumb Neutral"
 
-        # Open Palm (all 5 fingers extended)
+        # Open Palm
         if index_ext and middle_ext and ring_ext and pinky_ext:
             return "Open Palm"
 
-        # Peace Sign / Victory (index + middle extended, ring + pinky curled)
-        if index_ext and middle_ext and not ring_ext and not pinky_ext:
-            return "Peace Sign"
-
-        # Pointing (only index extended)
+        # Pointing (Index extended, remaining fingers curled)
         if index_ext and not middle_ext and not ring_ext and not pinky_ext:
             return "Pointing"
 
