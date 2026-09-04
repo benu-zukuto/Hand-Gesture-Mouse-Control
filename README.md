@@ -1,331 +1,437 @@
-# Hand Gesture Mouse & System Control
+# 🖐️ Hand Gesture Mouse & System Control
 
-A real-time computer control system that uses a camera stream and **MediaPipe Hand Landmarker** to recognize hand gestures and control the desktop without a physical mouse.
+A real-time Python application that lets you **control your computer using hand gestures** through a camera stream.
 
-The project supports:
+It uses **OpenCV + MediaPipe Hand Landmarker + PyAutoGUI** to detect hand movements and convert them into mouse, scrolling, volume, and brightness controls.
 
-- 🖱️ Single-hand mouse movement
-- 👆 Left click using an index-finger pinch
-- 🤏 Right click using a middle-finger pinch
-- 👍👎 Dynamic scrolling using thumb gestures
-- ✋ Two-hand volume control
-- ✋ Two-hand screen-brightness control
-- 📷 Live hand-landmark visualization
-- ⚡ Threaded camera capture for reduced stream-buffer delay
+## ✨ Features
 
-## Features
+* 🖱️ Move the mouse using your index finger
+* 👆 Left click using thumb + index finger pinch
+* 🤏 Right click using thumb + middle finger pinch
+* 👍 Scroll up using thumbs-up gesture
+* 👎 Scroll down using thumbs-down gesture
+* ✋ Two-hand volume control
+* 💡 Two-hand brightness control
+* 📷 Supports IP/phone camera streams
+* 🎯 Tracks up to 2 hands
+* 📊 Live FPS and gesture information
+* ⌨️ Keyboard controls for enabling/disabling the system
 
-### Single-Hand Mode
+---
 
-When one hand is detected, the system uses the index finger and gesture state to control the mouse.
+# 🛠️ Requirements
 
-| Gesture / Action | Result |
-|---|---|
-| Pointing | Move the mouse cursor |
-| Thumb + Index pinch | Left click |
-| Thumb + Middle-finger pinch | Right click |
-| Thumbs Up | Scroll up |
-| Thumbs Down | Scroll down |
-| Thumb Neutral | Pause scrolling |
+### Hardware
 
-The cursor movement is smoothed and mapped from the camera frame to the full screen.
-
-### Two-Hand Mode
-
-When two hands are detected, mouse control is temporarily frozen and the system switches to system-control mode.
-
-| Gesture | Movement | Result |
-|---|---|---|
-| Pinch both hands | Horizontal / left-right | Volume |
-| Pinch both hands | Vertical / north-south | Screen brightness |
-
-The system locks onto the dominant movement axis during a pinch gesture to reduce accidental diagonal input.
-
-## How It Works
-
-```text
-Phone Camera / IP Camera
-          │
-          ▼
-   Threaded Video Stream
-          │
-          ▼
-      OpenCV Frame
-          │
-          ▼
-   MediaPipe Hand Landmarker
-          │
-          ▼
-   21 Hand Landmarks / Hand
-          │
-          ├───────────────┐
-          ▼               ▼
-   Gesture Recognizer   Two-Hand Controller
-          │               │
-          ▼               ├── Horizontal → Volume
-   Mouse Controller       └── Vertical → Brightness
-          │
-          ├── Cursor movement
-          ├── Left click
-          ├── Right click
-          └── Scrolling
-```
-
-## Project Structure
-
-```text
-.
-├── main.py
-├── gesture_recognizer.py
-├── mouse_controller.py
-├── hand_landmarker.task
-└── README.md
-```
-
-### `main.py`
-
-The main application loop.
-
-Responsibilities:
-
-- Connects to the camera/IP video stream
-- Captures frames in a background thread
-- Runs MediaPipe Hand Landmarker
-- Supports up to two detected hands
-- Sends one-hand gestures to `MouseController`
-- Sends two-hand gestures to `TwoHandController`
-- Displays the live camera window and status information
-- Handles keyboard controls
-
-The application initializes MediaPipe with `num_hands=2` and uses VIDEO running mode.
-
-### `gesture_recognizer.py`
-
-Contains the `GestureRecognizer` class.
-
-It analyzes MediaPipe's 21 hand landmarks and identifies:
-
-- `Thumbs Up`
-- `Thumbs Down`
-- `Thumb Neutral`
-- `Open Palm`
-- `Pointing`
-- `Unknown`
-- `None`
-
-The recognition logic uses landmark distances and palm scale rather than relying directly on the absolute camera position. This helps make the gesture checks more tolerant of changes in hand size and orientation.
-
-### `mouse_controller.py`
-
-Contains two controllers:
-
-#### `MouseController`
-
-Handles:
-
-- Cursor movement
-- Cursor smoothing
-- Left-click detection
-- Right-click detection
-- Dynamic scrolling
-- Gesture state/reset handling
-
-#### `TwoHandController`
-
-Handles:
-
-- Two-hand pinch detection
-- Horizontal movement → volume
-- Vertical movement → brightness
-- Dominant-axis locking
-- Movement deadzone
-- Accumulated movement for smoother system adjustments
-
-## Requirements
+* Computer running Linux
+* Camera or Android phone
+* Computer and phone should be connected to the same network
 
 ### Software
 
-- Python 3
-- OpenCV
-- MediaPipe
-- PyAutoGUI
-- MediaPipe `hand_landmarker.task` model
-- Linux desktop environment for the included volume/brightness commands
+* Python 3
+* Git
+* OpenCV
+* MediaPipe
+* PyAutoGUI
+* `pactl`
+* `brightnessctl`
 
-Python dependencies:
+> **Note:** Volume and brightness control currently depend on Linux system utilities.
+
+---
+
+# 🚀 Installation
+
+## 1. Update your system
+
+This updates the Linux package list before installing dependencies.
 
 ```bash
-pip install opencv-python mediapipe pyautogui
+sudo apt update
 ```
 
-System utilities used by the current implementation:
+## 2. Install required system packages
+
+This installs Python, virtual-environment support, Git, and the Linux utilities used by the project.
+
+```bash
+sudo apt install -y python3 python3-pip python3-venv git pulseaudio-utils brightnessctl
+```
+
+## 3. Clone the repository
+
+This downloads the project from GitHub to your computer.
+
+```bash
+git clone https://github.com/benu-zukuto/Hand-Gesture-Mouse-Control.git
+```
+
+## 4. Enter the project folder
+
+This moves the terminal into the downloaded project directory.
+
+```bash
+cd Hand-Gesture-Mouse-Control
+```
+
+## 5. Create a virtual environment
+
+This creates an isolated Python environment for the project dependencies.
+
+```bash
+python3 -m venv .venv
+```
+
+## 6. Activate the virtual environment
+
+This makes Python use the project's isolated environment.
+
+```bash
+source .venv/bin/activate
+```
+
+## 7. Install Python dependencies
+
+This installs all Python libraries listed in `requirements.txt`.
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+# 📦 Download the MediaPipe Model
+
+The project requires the MediaPipe `hand_landmarker.task` model for hand detection.
+
+Run this command inside the project folder:
+
+```bash
+curl -L "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task" -o hand_landmarker.task
+```
+
+Check that the model exists:
+
+```bash
+ls -lh hand_landmarker.task
+```
+
+The project should now contain:
 
 ```text
-pactl
-brightnessctl
+Hand-Gesture-Mouse-Control/
+├── .venv/
+├── hand_landmarker.task
+├── main.py
+├── gesture_recognizer.py
+├── mouse_controller.py
+├── requirements.txt
+└── README.md
 ```
 
-On Linux, make sure both commands are available in the system `PATH`.
+---
 
-## Camera Setup
+# 📱 Camera Setup
 
-The current application expects an HTTP video stream.
+The current application expects an **HTTP video stream** from a phone or IP camera.
 
-The configured stream in `main.py` is:
+The default camera URL in the project is:
 
 ```text
 http://10.245.186.74:8080/video
 ```
 
-This address is specific to the current setup.
+This IP address is specific to the original setup, so it must be changed when using another phone or camera.
 
-Before running the project, change `stream_url` in `main.py` if the camera/phone has a different IP address or video-stream endpoint.
+## Using an Android Phone
+
+Install an Android IP-camera application that provides an HTTP video stream.
+
+Start the camera server and find the phone's IP address.
+
+For example:
+
+```text
+http://192.168.1.25:8080/video
+```
+
+Open the URL in a browser on the computer to verify that the video stream works.
+
+---
+
+# 🔧 Change the Camera URL
+
+Open `main.py`:
+
+```bash
+nano main.py
+```
+
+Find:
+
+```python
+stream_url = "http://10.245.186.74:8080/video"
+```
+
+Change it to the phone's address:
+
+```python
+stream_url = "http://YOUR_PHONE_IP:8080/video"
+```
 
 Example:
 
 ```python
-stream_url = "http://YOUR_CAMERA_IP:8080/video"
+stream_url = "http://192.168.1.25:8080/video"
 ```
 
-The computer and phone/camera should normally be reachable from the same local network.
+Save the file and exit.
 
-## MediaPipe Model
+---
 
-The application loads:
+# ▶️ Run the Project
 
-```text
-hand_landmarker.task
-```
-
-from the current working directory.
-
-Make sure the model file exists before starting the application.
-
-The current MediaPipe configuration is:
-
-```text
-Running mode: VIDEO
-Maximum hands: 2
-Minimum detection confidence: 0.5
-Minimum hand presence confidence: 0.5
-Minimum tracking confidence: 0.5
-```
-
-## Running the Project
-
-Place all required files in the same project directory:
-
-```text
-main.py
-gesture_recognizer.py
-mouse_controller.py
-hand_landmarker.task
-```
-
-Then run:
+Make sure the virtual environment is active:
 
 ```bash
-python3 main.py
-```
-
-If the project uses a virtual environment:
-
-```bash
-python3 -m venv .venv
 source .venv/bin/activate
-pip install opencv-python mediapipe pyautogui
+```
+
+Start the application:
+
+```bash
 python3 main.py
 ```
 
-## Keyboard Controls
+A camera window should open and start detecting hands.
 
-While the application is running:
+---
 
-| Key | Function |
-|---|---|
-| `q` | Quit the application |
-| `m` | Toggle mouse/system control ON or OFF |
+# 🖐️ Gesture Controls
 
-The live window also displays the detected gesture, current action, system state, and FPS.
+## One-Hand Mode
 
-## Gesture Details
+When one hand is detected, the system operates as a virtual mouse.
 
-### Pointing
+| Gesture                 | Action         |
+| ----------------------- | -------------- |
+| ☝️ Pointing             | Move mouse     |
+| 🤏 Thumb + Index pinch  | Left click     |
+| 🤏 Thumb + Middle pinch | Right click    |
+| 👍 Thumbs Up            | Scroll up      |
+| 👎 Thumbs Down          | Scroll down    |
+| 🤚 Thumb Neutral        | Stop scrolling |
 
-With one hand detected:
+---
 
-```text
-Index finger extended
-Middle finger curled
-Ring finger curled
-Pinky finger curled
-```
+## 🖱️ Mouse Movement
 
-Result:
-
-```text
-Move Cursor
-```
-
-### Left Click
-
-Bring the thumb tip and index fingertip close together.
-
-The current pinch-close threshold is:
+Point your index finger while keeping the other fingers curled.
 
 ```text
-0.07
+☝️
 ```
 
-A release is detected above:
+The index-finger position is converted into the mouse cursor position.
+
+Cursor movement is smoothed to reduce unwanted shaking.
+
+---
+
+# 👆 Left Click
+
+Bring your **thumb and index finger** together.
 
 ```text
-0.09
+👍 + ☝️
+   ↓
+ Pinch
 ```
 
-A click cooldown is also used to reduce repeated accidental clicks.
+The pinch is interpreted as a left mouse click.
 
-### Right Click
+---
 
-Bring the thumb tip and middle fingertip close together.
+# 🤏 Right Click
 
-The same close/release thresholds are used for right-click detection.
-
-### Dynamic Scroll
-
-The recognizer identifies:
+Bring your **thumb and middle finger** together.
 
 ```text
-Thumbs Up
-Thumbs Down
-Thumb Neutral
+Thumb + Middle Finger
+        ↓
+      Pinch
 ```
 
-The scroll controller applies filtering, a deadzone, and an acceleration mechanism so that stronger thumb movement can produce faster scrolling.
+The gesture is interpreted as a right mouse click.
 
-### Two-Hand Volume
+---
+
+# 👍 Scroll Up
+
+Show a thumbs-up gesture:
+
+```text
+👍
+```
+
+The system scrolls upward.
+
+---
+
+# 👎 Scroll Down
+
+Show a thumbs-down gesture:
+
+```text
+👎
+```
+
+The system scrolls downward.
+
+---
+
+# ✋ Two-Hand Controls
+
+When two hands are detected, mouse control is temporarily frozen and the system switches to system-control mode.
+
+## 🔊 Volume Control
 
 1. Show both hands.
-2. Pinch the thumb and index finger on both hands.
-3. Move the pinch points horizontally.
-4. The horizontal movement controls volume.
+2. Pinch thumb + index finger on both hands.
+3. Move both hands horizontally.
+4. Horizontal movement changes volume.
 
-The controller uses `pactl` and PyAutoGUI for volume adjustment.
+```text
+←────────────→
+    VOLUME
+```
 
-### Two-Hand Brightness
+The project uses `pactl` for Linux audio control.
+
+---
+
+# 💡 Brightness Control
 
 1. Show both hands.
-2. Pinch the thumb and index finger on both hands.
-3. Move the pinch points vertically.
-4. The vertical movement controls screen brightness.
+2. Pinch thumb + index finger on both hands.
+3. Move both hands vertically.
+4. Vertical movement changes screen brightness.
 
-The controller uses `brightnessctl` and PyAutoGUI for brightness adjustment.
+```text
+      ↑
+      │
+ BRIGHTNESS
+      │
+      ↓
+```
 
-## Technical Details
+The project uses `brightnessctl` for Linux brightness control.
 
-### Hand Landmarks
+---
 
-MediaPipe provides 21 landmarks for each detected hand:
+# ⌨️ Keyboard Controls
+
+| Key | Action                                  |
+| --- | --------------------------------------- |
+| `m` | Enable/disable mouse and system control |
+| `q` | Quit application                        |
+
+### Disable Control
+
+Press:
+
+```text
+m
+```
+
+This is useful when you need to temporarily stop gesture-controlled actions.
+
+### Exit
+
+Press:
+
+```text
+q
+```
+
+This closes the application.
+
+---
+
+# 🧠 How It Works
+
+```text
+             📱 Phone / IP Camera
+                     │
+                     ▼
+              HTTP Video Stream
+                     │
+                     ▼
+                  OpenCV
+                     │
+                     ▼
+          MediaPipe Hand Landmarker
+                     │
+                     ▼
+              21 Hand Landmarks
+                     │
+             ┌───────┴───────┐
+             ▼               ▼
+     Gesture Recognizer   Two-Hand Controller
+             │               │
+             ▼               ├── Horizontal → Volume
+      Mouse Controller       └── Vertical → Brightness
+             │
+       ┌─────┼─────┐
+       ▼     ▼     ▼
+    Cursor  Click  Scroll
+```
+
+The application processes the camera frames, detects hand landmarks, identifies gestures, and sends the corresponding control commands to the operating system.
+
+---
+
+# 📁 Project Structure
+
+```text
+Hand-Gesture-Mouse-Control/
+│
+├── main.py
+├── gesture_recognizer.py
+├── mouse_controller.py
+├── requirements.txt
+├── hand_landmarker.task
+├── README.md
+└── .gitignore
+```
+
+### `main.py`
+
+The main application that connects the camera, MediaPipe, gesture recognition, and controllers.
+
+### `gesture_recognizer.py`
+
+Detects gestures such as pointing, thumbs up, thumbs down, and thumb neutral using MediaPipe hand landmarks.
+
+### `mouse_controller.py`
+
+Controls cursor movement, clicking, scrolling, volume, and brightness.
+
+### `requirements.txt`
+
+Contains the Python packages required by the project.
+
+### `hand_landmarker.task`
+
+The MediaPipe model used to detect hand landmarks.
+
+---
+
+# 🔬 Hand Detection
+
+MediaPipe provides **21 landmarks for each detected hand**.
 
 ```text
 0   Wrist
@@ -356,202 +462,394 @@ MediaPipe provides 21 landmarks for each detected hand:
 20  Pinky Tip
 ```
 
-The gesture recognizer uses these landmarks to calculate distances and determine finger extension/curl states.
+The gesture recognizer uses these landmarks to determine finger positions and gestures.
 
-### Cursor Smoothing
+---
 
-Cursor movement uses a small history buffer to smooth the normalized index-finger position before converting it to screen coordinates.
+# ⚙️ MediaPipe Configuration
 
-The current controller is initialized with:
+The current application uses:
+
+```text
+Running Mode: VIDEO
+Maximum Hands: 2
+Detection Confidence: 0.5
+Hand Presence Confidence: 0.5
+Tracking Confidence: 0.5
+```
+
+The application processes up to two hands at the same time.
+
+---
+
+# 🖱️ Cursor Smoothing
+
+Cursor movement uses smoothing to reduce shaking caused by small changes in hand position.
+
+The current controller uses:
 
 ```python
 MouseController(smoothing=2)
 ```
 
-### Camera Buffer Handling
+If the cursor feels too sensitive, increase the smoothing value.
 
-`ThreadedCamera` continuously reads frames in a daemon thread and keeps the most recent frame.
+For example:
 
-The capture buffer is configured with:
+```python
+MouseController(smoothing=4)
+```
+
+---
+
+# 🐢 Camera Latency
+
+The project uses a separate camera thread to continuously capture the latest frame.
+
+This helps reduce delay when using an IP camera stream.
+
+The camera buffer is configured to:
 
 ```python
 cv2.CAP_PROP_BUFFERSIZE = 1
 ```
 
-This is intended to reduce visible delay when using an IP camera stream.
+---
 
-## Linux System Controls
+# 🔊 Linux Volume Requirements
 
-The current implementation is designed around Linux desktop utilities.
-
-### Volume
-
-The controller can call:
+Check whether `pactl` is available:
 
 ```bash
-pactl set-sink-volume @DEFAULT_SINK@ ...
+pactl --version
 ```
 
-and also sends volume keys through PyAutoGUI.
-
-### Brightness
-
-The controller can call:
-
-```bash
-brightnessctl set ...
-```
-
-and also sends brightness keys through PyAutoGUI.
-
-If these utilities are unavailable or unsupported by the desktop environment, mouse and gesture recognition can still work, but the corresponding system-control actions may not.
-
-## Troubleshooting
-
-### Camera connection failed
-
-If the application reports:
-
-```text
-Error: Could not connect to phone stream
-```
-
-Check:
-
-1. The phone/camera streaming application is running.
-2. The IP address in `main.py` is correct.
-3. The computer can reach the phone over the network.
-4. The video endpoint is correct.
-5. No firewall is blocking the stream port.
-
-### `hand_landmarker.task` not found
-
-Make sure the model file is in the project directory or update:
-
-```python
-model_asset_path='hand_landmarker.task'
-```
-
-with the correct path.
-
-### Volume does not change
-
-Check that `pactl` works manually:
+Check the current default audio device:
 
 ```bash
 pactl get-default-sink
 ```
 
-Then test the relevant volume command on the system.
+If `pactl` is unavailable, install the required package:
 
-### Brightness does not change
+```bash
+sudo apt install -y pulseaudio-utils
+```
 
-Check:
+---
+
+# 💡 Linux Brightness Requirements
+
+Check whether `brightnessctl` is installed:
 
 ```bash
 brightnessctl
 ```
 
-If the display or desktop environment does not expose a controllable backlight, `brightnessctl` may not be able to change the screen brightness.
+If it is missing:
 
-### Cursor feels too sensitive
-
-Adjust:
-
-```python
-self.frame_margin = 0.15
+```bash
+sudo apt install -y brightnessctl
 ```
 
-or change:
+Brightness support depends on whether the Linux system exposes a controllable display backlight.
+
+---
+
+# 🧪 Troubleshooting
+
+## ❌ Camera Does Not Connect
+
+Check whether the phone camera server is running.
+
+Then test the stream in a browser:
+
+```text
+http://YOUR_PHONE_IP:8080/video
+```
+
+If it does not open, check:
+
+* Phone and computer are on the same network.
+* Phone IP address is correct.
+* Camera server is running.
+* Port `8080` is not blocked.
+* The video endpoint is `/video`.
+
+---
+
+## ❌ `hand_landmarker.task` Not Found
+
+Check whether the file exists:
+
+```bash
+ls -lh hand_landmarker.task
+```
+
+If it does not exist, download it again:
+
+```bash
+curl -L "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task" -o hand_landmarker.task
+```
+
+---
+
+## ❌ Python Module Not Found
+
+Activate the virtual environment:
+
+```bash
+source .venv/bin/activate
+```
+
+Then reinstall the dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## ❌ Volume Does Not Change
+
+Test:
+
+```bash
+pactl get-default-sink
+```
+
+If this command fails, the Linux audio system may not provide the expected PulseAudio/PipeWire compatibility.
+
+---
+
+## ❌ Brightness Does Not Change
+
+Test:
+
+```bash
+brightnessctl
+```
+
+If no controllable backlight is detected, brightness control may not work with the current hardware or desktop environment.
+
+---
+
+## ❌ Cursor Is Too Sensitive
+
+Open:
+
+```bash
+nano mouse_controller.py
+```
+
+Find:
 
 ```python
 MouseController(smoothing=2)
 ```
 
-to a larger smoothing value.
+Increase the value:
 
-### Clicks trigger repeatedly
-
-The controller already uses separate close/release thresholds and a cooldown:
-
-```text
-PINCH_CLOSE    = 0.07
-PINCH_RELEASE  = 0.09
-CLICK_COOLDOWN = 0.35
+```python
+MouseController(smoothing=4)
 ```
 
-These can be tuned for different cameras, lighting conditions, or hand positions.
+Higher smoothing generally produces slower but steadier cursor movement.
 
-## Performance Notes
+---
 
-The application:
+## ❌ Repeated Clicks
 
-- Processes frames continuously from an IP stream
-- Resizes frames to `640 × 360`
-- Uses MediaPipe VIDEO mode
-- Tracks up to two hands
-- Uses a background camera thread
-- Uses lightweight geometric gesture classification
-- Displays the current FPS
+The controller already uses separate pinch-close and pinch-release thresholds plus a click cooldown to reduce accidental repeated clicks.
 
-Actual performance depends on the computer, camera stream, network latency, lighting, and MediaPipe processing speed.
+Current values:
 
-## Safety / Control Notes
+```text
+Pinch Close:    0.07
+Pinch Release:  0.09
+Click Cooldown: 0.35 seconds
+```
 
-This application sends real mouse and system-control events to the operating system.
+These values can be adjusted inside `mouse_controller.py`.
+
+---
+
+# ⚡ Quick Start
+
+For someone who already has Python and Git installed:
+
+```bash
+git clone https://github.com/benu-zukuto/Hand-Gesture-Mouse-Control.git
+```
+
+Clone the project.
+
+```bash
+cd Hand-Gesture-Mouse-Control
+```
+
+Enter the project directory.
+
+```bash
+python3 -m venv .venv
+```
+
+Create the Python virtual environment.
+
+```bash
+source .venv/bin/activate
+```
+
+Activate the environment.
+
+```bash
+pip install -r requirements.txt
+```
+
+Install Python dependencies.
+
+```bash
+curl -L "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task" -o hand_landmarker.task
+```
+
+Download the MediaPipe hand model.
+
+```bash
+python3 main.py
+```
+
+Start the application.
+
+---
+
+# 🔄 Run Again Later
+
+After the project has already been installed, only these commands are normally required:
+
+```bash
+cd Hand-Gesture-Mouse-Control
+```
+
+Open the project directory.
+
+```bash
+source .venv/bin/activate
+```
+
+Activate the Python environment.
+
+```bash
+python3 main.py
+```
+
+Start the hand-control system.
+
+---
+
+# ⚠️ Safety
+
+This application sends **real mouse and system-control events** to the operating system.
 
 Before using it:
 
-- Keep the mouse-control window accessible.
-- Use `m` to disable control when needed.
-- Use `q` to exit the application.
-- Be aware that detected gestures can trigger real clicks, scrolling, volume changes, and brightness changes.
+* Keep the application window accessible.
+* Use `m` to disable controls when necessary.
+* Use `q` to exit.
+* Be aware that gestures can trigger real clicks.
+* Avoid using the system near important buttons or destructive actions until the gestures are working reliably.
 
-## Current Limitations
+---
 
-The current implementation is focused on the functionality present in the supplied source code.
+# 🚧 Current Limitations
 
-Not currently implemented in the provided modules:
+The current implementation does not include:
 
-- Gesture customization through a configuration file
-- GUI settings panel
-- Gesture recording/training
-- Multi-monitor-specific cursor mapping
-- Windows/macOS-specific system-control backends
-- Persistent user profiles
-- Calibration UI
-- Voice control
-- Gesture history logging
+* Gesture customization through a configuration file
+* GUI settings panel
+* Gesture recording/training
+* Multi-monitor-specific cursor mapping
+* Windows/macOS system-control backends
+* Persistent user profiles
+* Calibration UI
+* Voice control
+* Gesture history logging
 
-## Future Improvements
+The current system is primarily designed around **Linux + IP camera streaming**.
 
-Possible future development areas:
+---
 
-- Add a calibration screen
-- Add configurable gesture mappings
-- Add sensitivity controls
-- Add configurable camera URLs
-- Add multi-monitor support
-- Add Windows and macOS backends
-- Add more gestures
-- Add gesture confidence indicators
-- Add an FPS/performance settings panel
-- Package the project as a standalone application
+# 🔮 Future Improvements
 
-## License
+Possible improvements include:
 
-No license information is currently specified in the provided source files.
+* 🎯 Gesture calibration
+* ⚙️ Custom gesture mapping
+* 🎚️ Sensitivity controls
+* 📱 Camera URL configuration
+* 🖥️ Multi-monitor support
+* 🪟 Windows support
+* 🍎 macOS support
+* ✋ Additional gestures
+* 📊 Gesture confidence indicators
+* 📈 Performance settings
+* 📦 Standalone executable
+* 🎥 Direct USB webcam support
 
-If this project will be published publicly, add an appropriate license file such as:
+---
 
-```text
-LICENSE
-```
+# 🧩 Technologies Used
 
-and update this section accordingly.
+| Technology      | Purpose                        |
+| --------------- | ------------------------------ |
+| Python          | Main programming language      |
+| OpenCV          | Camera and video processing    |
+| MediaPipe       | Hand landmark detection        |
+| PyAutoGUI       | Mouse and keyboard interaction |
+| NumPy           | Numerical calculations         |
+| `pactl`         | Linux volume control           |
+| `brightnessctl` | Linux brightness control       |
 
-## Project Status
+---
 
-**Current status:** Functional prototype
+# 📜 License
 
-The supplied implementation provides live hand tracking, gesture recognition, mouse control, scrolling, and two-hand volume/brightness control through a camera stream.
+No license is currently specified for this project.
+
+If the project is intended for public reuse or contribution, add a `LICENSE` file and specify the chosen license.
+
+---
+
+# 📊 Project Status
+
+**Status: Functional Prototype**
+
+The current implementation provides:
+
+* Real-time hand tracking
+* Gesture recognition
+* Mouse movement
+* Left clicking
+* Right clicking
+* Scrolling
+* Two-hand volume control
+* Two-hand brightness control
+* Live camera visualization
+* Keyboard safety controls
+
+---
+
+# 👨‍💻 Author
+
+**benu-zukuto**
+
+GitHub Repository:
+
+[Hand-Gesture-Mouse-Control](https://github.com/benu-zukuto)
+
+---
+
+# ⭐ Support
+
+If this project is useful, consider giving the repository a ⭐ on GitHub.
+
+Contributions, improvements, bug reports, and new gesture ideas are welcome.
