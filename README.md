@@ -844,7 +844,7 @@ The current implementation provides:
 
 GitHub Repository:
 
-[Hand-Gesture-Mouse-Control](https://github.com/benu-zukuto)
+[Benu](https://github.com/benu-zukuto)
 
 ---
 
